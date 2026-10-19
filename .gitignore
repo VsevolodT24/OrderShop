@@ -1,0 +1,6 @@
+@"
+bin/
+obj/
+.vs/
+*.user
+"@ | Set-Content .gitignoregit remote remove origin

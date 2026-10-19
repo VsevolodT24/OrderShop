@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="OrderShop.BLL/OrderShop.BLL.csproj" />
+  <Project Path="OrderShop.Core/OrderShop.Core.csproj" />
+  <Project Path="OrderShop.DAL/OrderShop.DAL.csproj" />
+  <Project Path="OrderShop.WebApi/OrderShop.WebApi.csproj" />
+</Solution>
