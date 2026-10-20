@@ -8,4 +8,5 @@ public class Customer
     public string Phone { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
+    public ICollection<Order> Orders { get; set; } = new List<Order>();
 }

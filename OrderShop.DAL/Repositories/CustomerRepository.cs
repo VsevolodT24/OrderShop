@@ -1,16 +1,12 @@
 using OrderShop.Core.Entities;
-using OrderShop.DAL.Context;
 
 namespace OrderShop.DAL.Repositories;
 
-public class CustomerRepository
+public class CustomerRepository : GenericRepository<Customer>, ICustomerRepository
 {
-    private readonly OrderShopDbContext _context;
+    public CustomerRepository(OrderShopDbContext context) : base(context) { }
 
-    public CustomerRepository(OrderShopDbContext context)
-    {
-        _context = context;
-    }
-
-    public IEnumerable<Customer> GetAll() => _context.Customers.ToList();
+    public Customer? GetByEmail(string email) => Set.FirstOrDefault(c => c.Email == email);
+    public IEnumerable<Customer> SearchByName(string namePart) => 
+        Set.Where(c => c.FullName.Contains(namePart)).ToList();
 }
