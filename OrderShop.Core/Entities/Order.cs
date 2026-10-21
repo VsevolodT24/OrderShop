@@ -19,4 +19,6 @@ public class Order
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public Delivery? Delivery { get; set; }
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public int? PromoCodeId { get; set; }
+    public decimal DiscountAmount { get; set; }
 }

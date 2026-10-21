@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="OrderShop.Benchmarks/OrderShop.Benchmarks.csproj" />
+  <Project Path="OrderShop.BLL.Tests/OrderShop.BLL.Tests.csproj" />
   <Project Path="OrderShop.BLL/OrderShop.BLL.csproj" />
   <Project Path="OrderShop.Core/OrderShop.Core.csproj" />
   <Project Path="OrderShop.DAL/OrderShop.DAL.csproj" />

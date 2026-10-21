@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          
+          <!-- Включаем только проект BLL -->
+          <Include>[OrderShop.BLL]*</Include>
+          <!-- Исключаем старый CustomerService, так как он не используется -->
+          <Exclude>[OrderShop.BLL]OrderShop.BLL.Services.CustomerService</Exclude>
+          <Exclude>[OrderShop.BLL]OrderShop.BLL.Services.CustomerService</Exclude>
+          <Exclude>[OrderShop.BLL]OrderShop.BLL.Infrastructure.OfflinePaymentGateway</Exclude>
+
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

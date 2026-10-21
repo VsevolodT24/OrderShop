@@ -1,76 +1,94 @@
+using OrderShop.BLL.Abstractions;
 using OrderShop.Core.Entities;
 using OrderShop.Core.Enums;
 using OrderShop.DAL.Repositories;
 
-namespace OrderShop.BLL;
+namespace OrderShop.BLL.Services;
 
 /// <summary>
-/// Бизнес-логика оформления заказа. Работает только с интерфейсом IUnitOfWork
-/// и ничего не знает о базе данных — слои DAL и BLL разделены.
+/// Бизнес-логика оформления заказа.
+/// После рефакторинга все зависимости (БД, расчёт скидки, время) передаются через интерфейсы.
 /// </summary>
 public class OrderService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IDiscountCalculator _discounts;
+    private readonly IClock _clock;
 
-    public OrderService(IUnitOfWork uow) => _uow = uow;
+    public OrderService(IUnitOfWork uow, IDiscountCalculator discounts, IClock clock)
+    {
+        _uow = uow ?? throw new ArgumentNullException(nameof(uow));
+        _discounts = discounts ?? throw new ArgumentNullException(nameof(discounts));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+    }
 
     /// <param name="items">Словарь «Id товара -> количество».</param>
-    public Order PlaceOrder(int customerId, int employeeId, IDictionary<int, int> items)
+    /// <param name="promoCode">Необязательный промокод.</param>
+    public Order PlaceOrder(int customerId, int employeeId, IDictionary<int, int> items, string? promoCode = null)
     {
         if (items == null || items.Count == 0)
             throw new ArgumentException("Заказ должен содержать хотя бы одну позицию.");
-
         if (_uow.Customers.GetById(customerId) is null)
             throw new InvalidOperationException($"Клиент с Id={customerId} не найден.");
-
         if (_uow.Employees.GetById(employeeId) is null)
             throw new InvalidOperationException($"Сотрудник с Id={employeeId} не найден.");
 
-        // 1-й проход: проверяем все позиции, ничего не изменяя
-        var lines = new List<(Product Product, int Quantity)>();
-        foreach (KeyValuePair<int, int> item in items)
+        var pairs = new List<KeyValuePair<int, int>>(items);
+        var orderItems = new List<OrderItem>();
+        decimal subtotal = 0m;
+
+        for (int i = 0; i < pairs.Count; i++)
         {
-            Product product = _uow.Products.GetById(item.Key)
-                ?? throw new InvalidOperationException($"Товар с Id={item.Key} не найден.");
+            Product product = _uow.Products.GetById(pairs[i].Key)
+                ?? throw new InvalidOperationException($"Товар с Id={pairs[i].Key} не найден.");
 
-            if (item.Value <= 0)
+            int quantity = pairs[i].Value;
+            if (quantity <= 0)
                 throw new ArgumentException($"Количество товара '{product.Name}' должно быть больше нуля.");
-
-            if (product.StockQuantity < item.Value)
+            if (product.StockQuantity < quantity)
                 throw new InvalidOperationException($"Недостаточно товара '{product.Name}' на складе.");
 
-            lines.Add((product, item.Value));
+            orderItems.Add(new OrderItem
+            {
+                ProductId = product.ProductId,
+                Product = product,
+                Quantity = quantity,
+                UnitPrice = product.Price
+            });
+            subtotal += product.Price * quantity;
         }
 
-        // 2-й проход: формируем заказ и списываем остатки
+        PromoCode? promo = null;
+        if (!string.IsNullOrWhiteSpace(promoCode))
+        {
+            promo = _uow.PromoCodes.GetByCode(promoCode.Trim())
+                ?? throw new InvalidOperationException($"Промокод '{promoCode.Trim()}' не найден.");
+        }
+
+        DateTime now = _clock.UtcNow;
+        decimal discount = _discounts.Calculate(subtotal, promo, now);
+
         var order = new Order
         {
             CustomerId = customerId,
             EmployeeId = employeeId,
-            OrderDate = DateTime.UtcNow,
-            Status = OrderStatus.New
+            OrderDate = now,
+            Status = OrderStatus.New,
+            PromoCodeId = promo?.PromoCodeId,
+            DiscountAmount = discount,
+            TotalAmount = subtotal - discount
         };
 
-        decimal total = 0m;
-        foreach (var (product, quantity) in lines)
+        for (int i = 0; i < orderItems.Count; i++)
         {
-            product.StockQuantity -= quantity;
+            Product product = orderItems[i].Product!;
+            product.StockQuantity -= orderItems[i].Quantity;
             _uow.Products.Update(product);
-
-            order.Items.Add(new OrderItem
-            {
-                ProductId = product.ProductId,
-                Quantity = quantity,
-                UnitPrice = product.Price
-            });
-
-            total += product.Price * quantity;
+            order.Items.Add(orderItems[i]);
         }
 
-        order.TotalAmount = total;
         _uow.Orders.Add(order);
-        _uow.Complete(); // заказ, позиции и остатки товаров сохраняются одной транзакцией
-
+        _uow.Complete();
         return order;
     }
 }

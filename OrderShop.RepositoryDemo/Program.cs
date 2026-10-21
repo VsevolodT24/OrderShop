@@ -1,3 +1,5 @@
+using OrderShop.BLL.Services;
+using OrderShop.BLL.Infrastructure;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using OrderShop.BLL;
@@ -97,7 +99,9 @@ using (var uow = new UnitOfWork(new OrderShopDbContext(options)))
     Console.WriteLine($"GetByEmail: {uow.Customers.GetByEmail("petrov@example.com")?.FullName}");
 
     // Бизнес-логика (BLL) работает через IUnitOfWork и не знает о БД
-    var orderService = new OrderService(uow);
+    var discounts = new DiscountCalculator();
+    var clock = new SystemClock();
+    var orderService = new OrderService(uow, discounts, clock);
     Order order = orderService.PlaceOrder(1, 1, new Dictionary<int, int> { { 1, 2 }, { 2, 3 } });
     Console.WriteLine($"Заказ №{order.OrderId} создан: позиций - {order.Items.Count}, сумма - {order.TotalAmount:F2}");
 
