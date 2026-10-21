@@ -6,3 +6,5 @@ obj/
 "@ | Set-Content .gitignoregit remote remove origin
 TestResults/
 coveragereport/
+*.db
+*.log
