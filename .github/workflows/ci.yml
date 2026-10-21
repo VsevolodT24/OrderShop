@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore OrderShop.slnx
+
+      - name: Build (Release)
+        run: dotnet build OrderShop.slnx --no-restore --configuration Release
+
+      - name: Run tests with code coverage
+        run: >
+          dotnet test OrderShop.BLL.Tests/OrderShop.BLL.Tests.csproj
+          --no-build
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+          --results-directory ./TestResults
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage report
+        run: >
+          reportgenerator
+          -reports:"TestResults/**/coverage.cobertura.xml"
+          -targetdir:coveragereport
+          -reporttypes:"Html;TextSummary;MarkdownSummaryGithub"
+
+      - name: Coverage summary
+        run: |
+          cat coveragereport/Summary.txt
+          cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Require 100% line and branch coverage
+        run: |
+          LINE=$(grep -oP 'Line coverage: \K[0-9.]+' coveragereport/Summary.txt)
+          BRANCH=$(grep -oP 'Branch coverage: \K[0-9.]+' coveragereport/Summary.txt)
+          echo "Line coverage: $LINE% Branch coverage: $BRANCH%"
+          if [ "$LINE" != "100" ] || [ "$BRANCH" != "100" ]; then
+            echo "::error::Покрытие кода меньше 100% (строки: $LINE%, ветви: $BRANCH%)"
+            exit 1
+          fi
